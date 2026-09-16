@@ -25,17 +25,19 @@ The project is currently in an early backend-first stage. The FastAPI service is
 ## Repository Layout
 
 ```mermaid
-.
-+-- backend/
-|   +-- app/
-|   |   +-- agent/       # Claim extraction and query planning
-|   |   +-- api/         # FastAPI routes
-|   |   +-- models/      # Request and response schemas
-|   |   +-- services/    # Search and evidence processing
-|   +-- requirements.txt
-+-- docs/                # Project documentation
-+-- frontend/            # Reserved for the web client
-+-- README.md
+flowchart TD
+  Root[TrustLens AI]
+  Root --> Backend[backend/]
+  Root --> Docs[docs/]
+  Root --> Frontend[frontend/]
+  Root --> Readme[README.md]
+
+  Backend --> App[app/]
+  Backend --> Requirements[requirements.txt]
+  App --> Agent[agent/<br/>Claim extraction and query planning]
+  App --> API[api/<br/>FastAPI routes]
+  App --> Models[models/<br/>Request and response schemas]
+  App --> Services[services/<br/>Search and evidence processing]
 ```
 
 ## Prerequisites
