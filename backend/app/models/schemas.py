@@ -22,6 +22,7 @@ class InvestigationResponse(BaseModel):
     claims: list
     search_queries: list
     sources: list
+    evidence: list
     findings: list
     explanation: str
     investigation_trail: list
