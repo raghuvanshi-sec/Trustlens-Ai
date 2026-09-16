@@ -25,7 +25,6 @@ The project is currently in an early backend-first stage. The FastAPI service is
 ## Repository Layout
 
 ```mermaid
-   flowchart TD
 .
 +-- backend/
 |   +-- app/
