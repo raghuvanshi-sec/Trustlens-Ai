@@ -27,11 +27,11 @@ function App() {
     const message = form.message_text.trim();
     // A URL-only message must be a complete, parseable HTTP(S) URL. Ordinary
     // pasted job-offer text remains valid even when it contains URLs.
-    if (/^https?:\\/\\/\\s*$/i.test(message)) {
+    if (/^https?:\/\/\s*$/i.test(message)) {
       setError('Enter a complete URL, or paste the job-offer message. "http://" by itself is incomplete.');
       return;
     }
-    if (/^https?:\\/\\/\\S+$/i.test(message)) {
+    if (/^https?:\/\/\S+$/i.test(message)) {
       try {
         const parsed = new URL(message);
         if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
