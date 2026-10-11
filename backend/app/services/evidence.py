@@ -38,9 +38,9 @@ def _source_belongs_to_claim(source: dict, claim_id: str) -> bool:
 
 
 def _job_title_from_message(message_text: str) -> str | None:
-    role_words = re.compile(r"\\b(engineer|developer|analyst|intern|designer|manager|consultant|scientist|architect|tester|support|associate|specialist|trainee)\\b", re.I)
+    role_words = re.compile(r"\b(engineer|developer|analyst|intern|designer|manager|consultant|scientist|architect|tester|support|associate|specialist|trainee)\b", re.I)
     for line in (message_text or "").splitlines()[:8]:
-        candidate = re.sub(r"\\s*[-–—|•]?\\s*\\(?\\s*\\d+\\s*(?:[-–to]+\\s*\\d+)?\\s*\\)?\\s*years?\\s+of\\s+experience.*$", "", line, flags=re.I).strip(" .,:-|")
+        candidate = re.sub(r"\s*[-–—|•]?\s*\(?\s*\d+\s*(?:[-–to]+\s*\d+)?\s*\)?\s*years?\s+of\s+experience.*$", "", line, flags=re.I).strip(" .,:-|")
         if 2 <= len(candidate) <= 80 and len(candidate.split()) <= 9 and role_words.search(candidate) and not re.search(r"[.!?]", candidate):
             return candidate
     return None
