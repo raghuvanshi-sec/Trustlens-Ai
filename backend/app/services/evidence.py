@@ -32,13 +32,27 @@ def source_matches_company(source: dict, company_name: str) -> bool:
     return bool(tokens and any(token == label for token in tokens for label in labels))
 
 
+def _source_belongs_to_claim(source: dict, claim_id: str) -> bool:
+    claim_ids = source.get("claim_ids") or []
+    return claim_id in claim_ids if claim_ids else source.get("claim_id") == claim_id
+
+
+def _job_title_from_message(message_text: str) -> str | None:
+    role_words = re.compile(r"\\b(engineer|developer|analyst|intern|designer|manager|consultant|scientist|architect|tester|support|associate|specialist|trainee)\\b", re.I)
+    for line in (message_text or "").splitlines()[:8]:
+        candidate = re.sub(r"\\s*[-–—|•]?\\s*\\(?\\s*\\d+\\s*(?:[-–to]+\\s*\\d+)?\\s*\\)?\\s*years?\\s+of\\s+experience.*$", "", line, flags=re.I).strip(" .,:-|")
+        if 2 <= len(candidate) <= 80 and len(candidate.split()) <= 9 and role_words.search(candidate) and not re.search(r"[.!?]", candidate):
+            return candidate
+    return None
+
+
 def _add(claim_id: str, source: dict | None, relation: str, strength: str, summary: str, index: int) -> dict:
     return {"id": f"evidence_{claim_id}_{index}", "claim_id": claim_id, "source_id": source.get("id") if source else None, "relation": relation, "strength": strength, "summary": summary}
 
 
-def analyze_claim(claim: dict, sources: list[dict], company_name: str) -> list[dict]:
+def analyze_claim(claim: dict, sources: list[dict], company_name: str, message_text: str = "") -> list[dict]:
     claim_id, claim_type = claim["id"], claim["type"]
-    related = [source for source in sources if source.get("claim_id") == claim_id]
+    related = [source for source in sources if _source_belongs_to_claim(source, claim_id)]
     if sources and not any("claim_id" in source for source in sources):
         related = [source for source in sources if source_matches_company(source, company_name)]
     evidence = []
@@ -53,13 +67,20 @@ def analyze_claim(claim: dict, sources: list[dict], company_name: str) -> list[d
         else:
             evidence.append(_add(claim_id, None, "missing", "weak", "No authoritative company source was identified in the collected results.", 1))
     elif claim_type in {"employment", "job_listing"}:
-        candidates = [source for source in related if source.get("source_type") in {"official", "official_candidate", "job_board"} and source_matches_company(source, company_name)]
+        job_title = _job_title_from_message(message_text)
+        title_tokens = [token for token in _tokens(job_title or "") if token not in {"engineer", "developer", "associate", "junior", "senior"}]
+        candidates = [
+            source for source in related
+            if source.get("source_type") in {"official", "official_candidate", "job_board"}
+            and source_matches_company(source, company_name)
+            and (not title_tokens or any(token in ((source.get("title", "") + " " + source.get("snippet", "")).lower()) for token in title_tokens))
+        ]
         if candidates:
             for index, source in enumerate(candidates[:3], 1):
                 strength = "medium" if source.get("source_type") in {"official", "job_board"} else "weak"
-                evidence.append(_add(claim_id, source, "supports", strength, "This result contains potentially relevant hiring information. It does not by itself authenticate the specific message or recruiter.", index))
+                evidence.append(_add(claim_id, source, "supports", strength, "This result appears relevant to the employer and role. It does not authenticate the specific message, sender, or current vacancy.", index))
         else:
-            evidence.append(_add(claim_id, None, "missing", "weak", "The claimed employment opportunity could not be independently verified from relevant collected results.", 1))
+            evidence.append(_add(claim_id, None, "missing", "weak", f"The claimed employment opportunity{(' for the role ' + repr(job_title)) if job_title else ''} could not be independently verified from relevant collected results. Search absence is not proof that the role is false.", 1))
     elif claim_type == "recruiter_identity":
         person = claim.get("text", "").split(" claims to represent ", 1)[0].strip().lower()
         candidates = [source for source in related if source.get("source_type") == "professional_network" and person and person in ((source.get("title", "") + " " + source.get("snippet", "")).lower()) and source_matches_company(source, company_name)]
@@ -103,10 +124,10 @@ def build_finding_summary(status: str, claim: dict) -> str:
     return "The available evidence is insufficient to independently verify this claim."
 
 
-def analyze_evidence(claims: list[dict], sources: list[dict], company_name: str) -> tuple[list[dict], list[dict]]:
+def analyze_evidence(claims: list[dict], sources: list[dict], company_name: str, message_text: str = "") -> tuple[list[dict], list[dict]]:
     all_evidence, findings = [], []
     for claim in claims:
-        items = analyze_claim(claim, sources, company_name)
+        items = analyze_claim(claim, sources, company_name, message_text)
         all_evidence.extend(items)
         relations = {item["relation"] for item in items}
         status = "conflicting" if "contradicts" in relations else "risk_signal" if "risk_signal" in relations else "supported" if "supports" in relations else "needs_verification"
