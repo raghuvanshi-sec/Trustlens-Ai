@@ -61,7 +61,7 @@ def analyze_claim(claim: dict, sources: list[dict], company_name: str, message_t
         if candidates:
             for index, source in enumerate(candidates[:3], 1):
                 if source.get("source_type") == "official":
-                    evidence.append(_add(claim_id, source, "supports", "strong", "This result is from a domain classified as an official source. Confirm that it is the correct company before relying on it.", index))
+                    evidence.append(_add(claim_id, source, "supports", "medium", "This domain is on the application's limited known-official list. Confirm that it belongs to the intended company; this classification is not a live ownership check.", index))
                 else:
                     evidence.append(_add(claim_id, source, "context", "weak", "The domain resembles the company name, but domain ownership has not been independently confirmed.", index))
         else:
