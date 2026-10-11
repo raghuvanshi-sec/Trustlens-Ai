@@ -1,201 +1,72 @@
 # TrustLens AI
 
-TrustLens AI is an evidence-driven investigation engine for suspicious job offers. It extracts verifiable claims from recruiter messages, creates targeted search queries, collects live web results through SerpApi, classifies sources, and returns a structured investigation trail for human review.
+TrustLens AI investigates suspicious job offers by extracting checkable claims, searching public web sources, and linking findings to evidence. It is an investigative aid, not a definitive fraud detector.
 
-The project is currently in an early backend-first stage. The FastAPI service is implemented; the `frontend` directory is reserved for the user interface and the `docs` directory contains project documentation.
+## Stack
 
-## Key Features
+- FastAPI, Pydantic, Uvicorn, SerpApi
+- React, Vite, Lucide icons
+- DM Sans + IBM Plex Mono; warm paper, ink, slate, and restrained rust-red warnings
 
-- Extracts company, employment, recruiter, contact, URL, and payment-related claims.
-- Generates verification queries based on the claims found in a message.
-- Searches live web results with SerpApi.
-- Normalizes sources and classifies them as official, professional network, news, or other.
-- Produces claim-level evidence, findings, and an investigation trail.
-- Exposes a health endpoint for local and deployment checks.
+## Run locally
 
-## Tech Stack
-
-- **Language:** Python 3.10+
-- **API framework:** FastAPI
-- **ASGI server:** Uvicorn
-- **Web search:** SerpApi
-- **Configuration:** Environment variables loaded with `python-dotenv`
-- **Client application:** Planned in `frontend/`
-
-## Repository Layout
-
-```mermaid
-flowchart TD
-  Root[TrustLens AI]
-  Root --> Backend[backend/]
-  Root --> Docs[docs/]
-  Root --> Frontend[frontend/]
-  Root --> Readme[README.md]
-
-  Backend --> App[app/]
-  Backend --> Requirements[requirements.txt]
-  App --> Agent[agent/<br/>Claim extraction and query planning]
-  App --> API[api/<br/>FastAPI routes]
-  App --> Models[models/<br/>Request and response schemas]
-  App --> Services[services/<br/>Search and evidence processing]
-```
-
-## Prerequisites
-
-- Python 3.10 or newer
-- A SerpApi account and API key for live investigations
-- Git
-
-## Getting Started
-
-### 1. Clone the repository
+### Backend (PowerShell)
 
 ```powershell
-git clone https://github.com/raghuvanshi-sec/Trustlens-Ai.git
-cd Trustlens-Ai
-```
-
-### 2. Create a virtual environment
-
-Windows PowerShell:
-
-```powershell
-py -3 -m venv .venv
+cd backend
+py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-macOS or Linux:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 3. Install backend dependencies
-
-```powershell
-python -m pip install --upgrade pip
-python -m pip install -r backend/requirements.txt
-```
-
-### 4. Configure SerpApi
-
-Set the API key in the shell before starting the service. The application reads `SERPAPI_API_KEY` from the environment or a `.env` file in the working directory.
-
-PowerShell:
-
-```powershell
-$env:SERPAPI_API_KEY = "your-serpapi-key"
-```
-
-Or create `backend/.env`:
-
-```env
-SERPAPI_API_KEY=your-serpapi-key
-```
-
-Do not commit real API keys. The repository ignores `.env` files.
-
-### 5. Start the API
-
-Run Uvicorn from the `backend` directory so Python can resolve the `app` package:
-
-```powershell
-Set-Location backend
+python -m pip install -r requirements-dev.txt
+Copy-Item .env.example .env
+# Set SERPAPI_API_KEY in backend/.env, then:
 python -m uvicorn app.main:app --reload
 ```
 
-The API will be available at `http://127.0.0.1:8000`. Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
+### Frontend (second terminal)
 
-## API Reference
-
-### Health check
-
-```http
-GET /api/health
+```powershell
+cd frontend
+npm install
+npm run dev
 ```
 
-Example response:
+Open `http://localhost:5173`. Vite proxies `/api` requests to FastAPI on port 8000. Build with `npm run build`.
 
-```json
-{
-  "status": "ok",
-  "service": "TrustLens AI"
-}
+## Test backend
+
+From `backend/`:
+
+```powershell
+python -m pytest -q
 ```
 
-### Investigate a job offer
+The tests use mocked search responses; they do not require a live SerpApi key. Live search requires a valid `SERPAPI_API_KEY`.
 
-```http
-POST /api/investigate
-Content-Type: application/json
-```
+## API
+
+- `GET /api/health`
+- `POST /api/investigate`
 
 Example request:
 
 ```json
 {
-  "message_text": "You have been selected for a software engineer position. Please pay a registration fee to continue.",
   "company_name": "Example Corporation",
-  "recruiter_details": {
-    "name": "Alex Recruiter",
-    "email": "alex@example.com"
-  },
-  "application_url": "https://example.com/apply",
-  "job_listing_url": "https://example.com/jobs/123"
+  "message_text": "You have been selected for a role. Pay a registration fee to continue.",
+  "application_url": "https://example.com/apply"
 }
 ```
 
-The response includes the generated claims, search queries, normalized sources, evidence, findings, an overall finding, and the ordered investigation trail. A live SerpApi key is required because the route performs web searches for each planned query.
+The report contains extracted claims, planned searches, normalized sources, claim-level evidence, findings, an overall assessment, and a search trail. Search failures are reported as incomplete results rather than treated as proof of fraud.
 
-Example request with PowerShell:
+## Safety and limitations
 
-```powershell
-$body = @{
-  message_text = "You have been selected for a software engineer position."
-  company_name = "Example Corporation"
-} | ConvertTo-Json
+- Payment requests are treated as a risk signal and should be verified independently before paying.
+- A domain that resembles a company name is only a candidate, not proof of ownership.
+- Search snippets can be incomplete or misleading; open the source and verify through contact details obtained independently.
+- The MVP does not include authentication, rate limiting, persistent storage, or production deployment hardening. Do not expose it publicly without those controls.
+- Never commit `.env` files or API credentials. `.gitignore` excludes environment files while allowing `.env.example`.
 
-Invoke-RestMethod `
-  -Uri http://127.0.0.1:8000/api/investigate `
-  -Method Post `
-  -ContentType "application/json" `
-  -Body $body
-```
+## QA
 
-## How It Works
-
-1. The route receives recruiter message and company details.
-2. `claims.py` extracts claims that can be checked independently.
-3. `query_planner.py` turns claims into targeted search queries.
-4. `serpapi.py` retrieves live search results.
-5. `sources.py` normalizes result metadata and classifies source domains.
-6. `evidence.py` compares sources with claims and creates conservative evidence and findings.
-7. The route assembles the report and investigation trail for the client.
-
-## Important Limitations
-
-- Results are investigative signals, not a definitive fraud determination.
-- Source matching is intentionally conservative and currently uses simple company-name and domain comparisons.
-- Search availability and result quality depend on SerpApi and the configured search engine.
-- The current investigation ID is a demo value and is not persisted.
-- There is no database, authentication, rate limiting, or production deployment configuration yet.
-- The frontend is not implemented yet.
-
-## Development Notes
-
-Keep the backend working directory set to `backend` when launching Uvicorn. Before opening a pull request, verify the health endpoint and exercise `/api/investigate` with a test SerpApi key. Add automated tests as the claim extraction, query planning, and evidence rules grow.
-
-## Deployment
-
-No deployment target is configured yet. For a basic production deployment, install the dependencies in an isolated Python environment, provide `SERPAPI_API_KEY` through the platform's secret manager, and run:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-Run that command with `backend` as the working directory. Add authentication, request validation at the edge, logging, rate limiting, and persistent investigation storage before exposing the service publicly.
-
-## License
-
-No license has been specified yet.
+See [`docs/QA_REPORT.md`](docs/QA_REPORT.md) for verified checks and environment-dependent checks. Local browser-to-API testing and a live SerpApi request remain to be run on a machine with configured credentials.
