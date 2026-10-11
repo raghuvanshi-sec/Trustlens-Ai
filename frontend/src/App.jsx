@@ -12,9 +12,38 @@ function App() {
   const evidenceByClaim = useMemo(() => (report?.evidence || []).reduce((map, item) => ((map[item.claim_id] ||= []).push(item), map), {}), [report]);
   const sourceById = useMemo(() => Object.fromEntries((report?.sources || []).map(source => [source.id, source])), [report]);
   const findingByClaim = useMemo(() => Object.fromEntries((report?.findings || []).map(finding => [finding.claim_id, finding])), [report]);
-  const setField = event => setForm(current => ({ ...current, [event.target.name]: event.target.value }));
+  const setField = event => {
+    setForm(current => ({ ...current, [event.target.name]: event.target.value }));
+    // Never leave a previous report visible while the user edits a new case.
+    setReport(null);
+    setError('');
+  };
   async function investigate(event) {
-    event.preventDefault(); setError(''); setReport(null); setLoading(true); setTab('findings');
+    event.preventDefault();
+    setError('');
+    setReport(null);
+    setTab('findings');
+
+    const message = form.message_text.trim();
+    // A URL-only message must be a complete, parseable HTTP(S) URL. Ordinary
+    // pasted job-offer text remains valid even when it contains URLs.
+    if (/^https?:\\/\\/\\s*$/i.test(message)) {
+      setError('Enter a complete URL, or paste the job-offer message. "http://" by itself is incomplete.');
+      return;
+    }
+    if (/^https?:\\/\\/\\S+$/i.test(message)) {
+      try {
+        const parsed = new URL(message);
+        if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+          throw new Error('invalid URL');
+        }
+      } catch {
+        setError('Enter a valid, complete http:// or https:// URL, or paste the job-offer message.');
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       const payload = { company_name: form.company_name.trim(), message_text: form.message_text.trim() };
       if (form.recruiter_name.trim() || form.recruiter_email.trim()) { payload.recruiter_details = {}; if (form.recruiter_name.trim()) payload.recruiter_details.name = form.recruiter_name.trim(); if (form.recruiter_email.trim()) payload.recruiter_details.email = form.recruiter_email.trim(); }
