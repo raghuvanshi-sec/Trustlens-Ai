@@ -45,7 +45,7 @@ async def investigate(request: InvestigationRequest):
         for batch in source_batches:
             all_sources.extend(batch)
     all_sources = deduplicate_sources(all_sources)
-    evidence, findings = analyze_evidence(claims, all_sources, request.company_name)
+    evidence, findings = analyze_evidence(claims, all_sources, request.company_name, request.message_text)
     overall_finding = summarize_overall_finding(claims, findings, search_queries)
     investigation_trail = []
     for claim in claims:
